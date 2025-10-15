@@ -27,8 +27,10 @@ self.addEventListener('message', event => {
         icon: 'https://placehold.co/192x192/blue/white?text=🔔',
         badge: 'https://placehold.co/96x96/blue/white?text=🔔',
         vibrate: [200, 100, 200],
-        // Add a tag to make notifications unique
-        tag: task.id.toString() 
+        tag: task.id.toString(),
+        // --- NEW LINE ---
+        // This makes the notification persistent until the user interacts with it.
+        requireInteraction: true 
       });
       console.log(`Service Worker: Notification shown for "${task.name}".`);
     }, delay);
@@ -37,25 +39,18 @@ self.addEventListener('message', event => {
   }
 });
 
-// --- NEW CODE ---
-// This new event listener handles what happens when a notification is clicked.
 self.addEventListener('notificationclick', event => {
   console.log('Service Worker: Notification clicked.');
 
-  // Close the notification pop-up
   event.notification.close();
 
-  // This code searches for an already open app window and focuses it.
-  // If no window is open, it opens a new one.
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
-        // Use the scope of the service worker to find the correct app
         if (client.url === self.registration.scope && 'focus' in client) {
           return client.focus();
         }
       }
-      // If we didn't find an open window, open a new one
       if (clients.openWindow) {
         return clients.openWindow(self.registration.scope);
       }
