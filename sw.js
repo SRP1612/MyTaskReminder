@@ -24,8 +24,8 @@ self.addEventListener('message', event => {
     setTimeout(() => {
       self.registration.showNotification('Task Reminder!', {
         body: task.name,
-        icon: 'https://placehold.co/192x192/blue/white?text=🔔',
-        badge: 'https://placehold.co/96x96/blue/white?text=🔔',
+        icon: './icon-192.svg',
+        badge: './icon-192.svg',
         vibrate: [200, 100, 200],
         tag: task.id.toString(),
         // --- NEW LINE ---
