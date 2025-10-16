@@ -45,10 +45,16 @@ const scheduleNotification = (task) => {
 };
 
 self.addEventListener('message', event => {
-  const task = event.data;
-  console.log('Service Worker: Message received.', task);
-  pendingTasks.set(task.id, task);
-  scheduleNotification(task);
+  const data = event.data;
+  if (data.action === 'complete') {
+    pendingTasks.delete(data.taskId);
+    console.log('Service Worker: Task completed, removed from pending:', data.taskId);
+  } else {
+    const task = data;
+    console.log('Service Worker: Message received.', task);
+    pendingTasks.set(task.id, task);
+    scheduleNotification(task);
+  }
 });
 
 self.addEventListener('notificationclick', event => {
