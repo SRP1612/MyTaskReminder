@@ -50,8 +50,8 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">Task Reminder</h1>
-            <p class="text-gray-500 mt-2">Add your tasks and get timely reminders right on your device.</p>
+            <h1 class="text-4xl font-bold text-gray-800">My Task Reminder</h1>
+            <p class="text-gray-500 mt-2">Create tasks and receive reminders you can snooze or mark as completed.</p>
         </header>
         
         <main>
@@ -92,7 +92,7 @@
             <!-- Notification Permission Area -->
             <div id="notification-permission-area" class="bg-white p-4 rounded-lg shadow-md mb-6 text-center">
                  <button id="enable-notifications-btn" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300">
-                    Enable Notifications
+                    Enable Reminders
                 </button>
                       <button id="reset-app-btn" class="w-full sm:w-auto mt-2 bg-red-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-300">
                           Reset App
@@ -114,7 +114,7 @@
                     </div>
                     <div class="md:col-span-2">
                         <button type="submit" class="w-full bg-green-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-300">
-                            Add Task
+                            Save Task & Schedule Reminder
                         </button>
                     </div>
                 </form>
@@ -122,19 +122,19 @@
 
             <!-- Task List -->
             <div>
-                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Tasks</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Pending Tasks</h2>
                 <div id="task-list" class="space-y-4">
                     <!-- Tasks will be dynamically inserted here -->
-                     <p class="text-center text-gray-500" id="no-tasks-message">You have no pending tasks. Add one above!</p>
+                     <p class="text-center text-gray-500" id="no-tasks-message">No pending tasks — add one to get started.</p>
                 </div>
             </div>
 
             <!-- Completed Tasks -->
             <div id="completed-section" class="mt-8">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Completed Tasks</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">Completed</h2>
                 <div id="completed-list" class="space-y-4">
                     <!-- Completed tasks will be dynamically inserted here -->
-                     <p class="text-center text-gray-500" id="no-completed-message">You have no completed tasks yet.</p>
+                     <p class="text-center text-gray-500" id="no-completed-message">No completed tasks yet.</p>
                 </div>
             </div>
         </main>
@@ -177,6 +177,16 @@
                         });
                 });
             }
+
+            const sendToSW = (msg) => {
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage(msg);
+                } else if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg && reg.active) reg.active.postMessage(msg);
+                    });
+                }
+            };
             
             // Set minimum datetime to now to prevent past dates
             const now = new Date();
@@ -225,7 +235,7 @@
                 Notification.requestPermission().then(permission => {
                     checkNotificationPermission();
                     if (permission === 'granted') {
-                        showMessage('Notifications enabled successfully!');
+                        showMessage('Reminders enabled. You will receive scheduled notifications.');
                     } else {
                         showMessage('Notification permission was not granted.', 'error');
                     }
@@ -268,16 +278,13 @@
                         taskElement.className = 'bg-white p-4 rounded-lg shadow-md flex justify-between items-center task-card';
                         
                         const dueDate = new Date(task.due);
-                        const isPast = dueDate < new Date();
 
                         taskElement.innerHTML = `
-                            <div class="${isPast ? 'text-gray-400 line-through' : 'text-gray-800'}">
+                            <div class="text-gray-800">
                                 <h3 class="font-semibold text-lg">${task.name}</h3>
                                 <p class="text-sm">${dueDate.toLocaleString()}</p>
                             </div>
-                            <div class="flex flex-col space-y-1">
-                                <button data-id="${task.id}" class="open-btn text-indigo-600 hover:text-indigo-800 text-sm py-1 px-2 rounded transition">Open</button>
-                                <button data-id="${task.id}" class="completed-btn text-green-500 hover:text-green-700 text-sm py-1 px-2 rounded transition">Completed</button>
+                            <div class="flex items-center">
                                 <button data-id="${task.id}" class="delete-btn text-red-500 hover:text-red-700 text-sm py-1 px-2 rounded transition">Delete</button>
                             </div>
                         `;
@@ -329,10 +336,8 @@
                     };
                     tasks.push(newTask);
                     
-                    // Send task to service worker for notification scheduling
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage(newTask);
-                    }
+                    // Send task to service worker for notification scheduling (use helper)
+                    sendToSW(newTask);
 
                     saveTasks();
                     taskForm.reset();
@@ -340,7 +345,7 @@
                     const now = new Date();
                     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                     taskDateTimeInput.min = now.toISOString().slice(0, 16);
-                    showMessage('Task added successfully! Reminder is set.');
+                    showMessage('Task saved. Reminder scheduled.');
                 }
             });
 
@@ -348,23 +353,10 @@
                 const button = e.target.closest('button');
                 if (!button) return;
                 const taskId = parseInt(button.dataset.id);
-                const task = tasks.find(t => t.id === taskId);
-                if (!task) return;
                 if (button.classList.contains('delete-btn')) {
                     tasks = tasks.filter(t => t.id !== taskId);
                     saveTasks();
                     showMessage('Task removed.', 'info');
-                } else if (button.classList.contains('open-btn')) {
-                    // Open the notification UI in a new small window
-                    const url = `notification.html?taskId=${taskId}`;
-                    window.open(url, '_blank', 'width=420,height=360');
-                } else if (button.classList.contains('completed-btn')) {
-                    task.status = 'completed';
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage({action: 'complete', taskId: task.id});
-                    }
-                    saveTasks();
-                    showMessage('Task marked as completed.');
                 }
             });
 
@@ -380,8 +372,7 @@
 
             // --- UI Update on an interval ---
             const periodicUIUpdate = () => {
-                // This just re-renders the tasks, which updates the dashboard
-                // and moves any newly overdue tasks to a "line-through" state.
+                // Re-render tasks and dashboard periodically.
                 renderTasks();
             };
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Reminder</title>
+  <title>Reminder — My Task Reminder</title>
   <style>
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; margin: 0; padding: 16px; background:#f8fafc; }
     .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); max-width: 420px; margin: 40px auto; }
@@ -19,19 +19,19 @@
 </head>
 <body>
   <div class="card">
-    <div class="title" id="task-name">Loading...</div>
+  <div class="title" id="task-name">Loading reminder...</div>
     <div class="when" id="task-due"></div>
 
     <div class="row">
-      <button id="snooze-btn" class="btn-primary">Snooze</button>
-      <button id="completed-btn" class="btn-success">Completed</button>
+  <button id="snooze-btn" class="btn-primary">Snooze…</button>
+  <button id="completed-btn" class="btn-success">Mark as Completed</button>
     </div>
 
     <div id="snooze-panel" style="display:none; margin-top:12px;">
       <div class="snooze-options">
-        <button data-min="5" class="btn-ghost">5 min</button>
-        <button data-min="15" class="btn-ghost">15 min</button>
-        <button data-min="60" class="btn-ghost">60 min</button>
+        <button data-min="5" class="btn-ghost">Snooze 5 min</button>
+        <button data-min="15" class="btn-ghost">Snooze 15 min</button>
+        <button data-min="60" class="btn-ghost">Snooze 60 min</button>
       </div>
     </div>
   </div>
@@ -55,14 +55,14 @@
     const render = () => {
       const task = loadTaskFromStorage();
       if (!task) {
-        taskNameEl.textContent = 'Task not found';
+        taskNameEl.textContent = 'Reminder not found';
         taskDueEl.textContent = '';
         snoozeBtn.disabled = true;
         completedBtn.disabled = true;
         return;
       }
       taskNameEl.textContent = task.name;
-      taskDueEl.textContent = new Date(task.due).toLocaleString();
+      taskDueEl.textContent = `Reminder set for ${new Date(task.due).toLocaleString()}`;
       // Disable snooze if completed
       if (task.status === 'completed') {
         snoozeBtn.disabled = true;
