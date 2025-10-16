@@ -90,6 +90,24 @@ self.addEventListener('message', event => {
   }
 });
 
+// Handle reset messages from clients
+self.addEventListener('message', event => {
+  const data = event.data;
+  if (data && data.action === 'reset') {
+    // Clear timers
+    for (const [id, t] of scheduleTimers.entries()) {
+      clearTimeout(t);
+    }
+    scheduleTimers.clear();
+    pendingTasks.clear();
+    // close notifications if possible
+    self.registration.getNotifications().then(notifs => {
+      for (const n of notifs) n.close();
+    });
+    console.log('Service Worker: Reset completed - timers cleared and notifications closed.');
+  }
+});
+
 self.addEventListener('notificationclick', event => {
   console.log('Service Worker: Notification clicked.', event.action);
 
