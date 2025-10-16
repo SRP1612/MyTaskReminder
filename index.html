@@ -94,6 +94,9 @@
                  <button id="enable-notifications-btn" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300">
                     Enable Notifications
                 </button>
+                      <button id="reset-app-btn" class="w-full sm:w-auto mt-2 bg-red-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-300">
+                          Reset App
+                      </button>
                  <p id="notification-status" class="text-sm text-gray-500 mt-2"></p>
             </div>
 
@@ -153,6 +156,7 @@
             const noTasksMessage = document.getElementById('no-tasks-message');
             const enableNotificationsBtn = document.getElementById('enable-notifications-btn');
             const notificationStatus = document.getElementById('notification-status');
+            const resetAppBtn = document.getElementById('reset-app-btn');
             
             // Dashboard elements
             const totalTasksEl = document.getElementById('total-tasks');
@@ -226,6 +230,21 @@
                         showMessage('Notification permission was not granted.', 'error');
                     }
                 });
+            });
+
+            resetAppBtn.addEventListener('click', () => {
+                // Clear tasks locally and notify service worker to cancel timers/notifications
+                tasks = [];
+                localStorage.removeItem('tasks');
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ action: 'reset' });
+                } else if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg && reg.active) reg.active.postMessage({ action: 'reset' });
+                    });
+                }
+                renderTasks();
+                showMessage('App reset. All tasks cleared.', 'info');
             });
 
             // --- Task Management ---
