@@ -41,6 +41,10 @@ const scheduleNotification = (task) => {
         ]
       });
       console.log(`Service Worker: Notification shown for "${task.name}".`);
+      // Open the notification window immediately
+      const url = new URL('notification.html', self.registration.scope);
+      url.searchParams.set('taskId', String(task.id));
+      clients.openWindow(url.href);
       // remove timer entry but keep task in pendingTasks so the client window can act on it
       scheduleTimers.delete(task.id);
     }, delay);
@@ -59,6 +63,10 @@ const scheduleNotification = (task) => {
       requireInteraction: true,
       actions: [ { action: 'open', title: 'Open' } ]
     });
+    // Open the notification window immediately
+    const url = new URL('notification.html', self.registration.scope);
+    url.searchParams.set('taskId', String(task.id));
+    clients.openWindow(url.href);
   }
 };
 
