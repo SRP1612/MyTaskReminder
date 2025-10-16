@@ -64,7 +64,20 @@ const scheduleNotification = (task) => {
 
 self.addEventListener('message', event => {
   const data = event.data;
-  // Message types: { action: 'complete', taskId }, { action: 'reschedule', taskId, newDue }, or a full task object
+  // Handle reset
+  if (data && data.action === 'reset') {
+    for (const [id, t] of scheduleTimers.entries()) {
+      clearTimeout(t);
+    }
+    scheduleTimers.clear();
+    pendingTasks.clear();
+    self.registration.getNotifications().then(notifs => {
+      for (const n of notifs) n.close();
+    });
+    console.log('Service Worker: Reset completed - timers cleared and notifications closed.');
+    return;
+  }
+  // Handle complete
   if (data && data.action === 'complete') {
     const id = data.taskId;
     if (scheduleTimers.has(id)) {
@@ -73,7 +86,10 @@ self.addEventListener('message', event => {
     }
     pendingTasks.delete(id);
     console.log('Service Worker: Task completed, removed from pending:', id);
-  } else if (data && data.action === 'reschedule') {
+    return;
+  }
+  // Handle reschedule
+  if (data && data.action === 'reschedule') {
     const id = data.taskId;
     const task = pendingTasks.get(id);
     if (task) {
@@ -82,29 +98,14 @@ self.addEventListener('message', event => {
       scheduleNotification(task);
       console.log('Service Worker: Task rescheduled from client:', id, data.newDue);
     }
-  } else {
+    return;
+  }
+  // Otherwise, treat as new/updated task
+  if (data && data.id) {
     const task = data;
     console.log('Service Worker: Message received.', task);
     pendingTasks.set(task.id, task);
     scheduleNotification(task);
-  }
-});
-
-// Handle reset messages from clients
-self.addEventListener('message', event => {
-  const data = event.data;
-  if (data && data.action === 'reset') {
-    // Clear timers
-    for (const [id, t] of scheduleTimers.entries()) {
-      clearTimeout(t);
-    }
-    scheduleTimers.clear();
-    pendingTasks.clear();
-    // close notifications if possible
-    self.registration.getNotifications().then(notifs => {
-      for (const n of notifs) n.close();
-    });
-    console.log('Service Worker: Reset completed - timers cleared and notifications closed.');
   }
 });
 
