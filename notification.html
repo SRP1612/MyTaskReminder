@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reminder</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; margin: 0; padding: 16px; background:#f8fafc; }
+    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); max-width: 420px; margin: 40px auto; }
+    .title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .when { color: #475569; margin-bottom: 12px; }
+    .row { display:flex; gap:8px; }
+    button { padding:8px 12px; border-radius:6px; border: none; cursor:pointer; }
+    .btn-primary { background:#2563eb; color:white; }
+    .btn-ghost { background:#eef2ff; color:#3730a3; }
+    .btn-success { background:#10b981; color:white; }
+    .snooze-options { margin-top:8px; display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title" id="task-name">Loading...</div>
+    <div class="when" id="task-due"></div>
+
+    <div class="row">
+      <button id="snooze-btn" class="btn-primary">Snooze</button>
+      <button id="completed-btn" class="btn-success">Completed</button>
+    </div>
+
+    <div id="snooze-panel" style="display:none; margin-top:12px;">
+      <div class="snooze-options">
+        <button data-min="5" class="btn-ghost">5 min</button>
+        <button data-min="15" class="btn-ghost">15 min</button>
+        <button data-min="60" class="btn-ghost">60 min</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Read taskId from query param
+    const params = new URLSearchParams(location.search);
+    const taskId = parseInt(params.get('taskId'));
+
+    const taskNameEl = document.getElementById('task-name');
+    const taskDueEl = document.getElementById('task-due');
+    const snoozeBtn = document.getElementById('snooze-btn');
+    const completedBtn = document.getElementById('completed-btn');
+    const snoozePanel = document.getElementById('snooze-panel');
+
+    const loadTaskFromStorage = () => {
+      const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+      return tasks.find(t => t.id === taskId);
+    };
+
+    const render = () => {
+      const task = loadTaskFromStorage();
+      if (!task) {
+        taskNameEl.textContent = 'Task not found';
+        taskDueEl.textContent = '';
+        snoozeBtn.disabled = true;
+        completedBtn.disabled = true;
+        return;
+      }
+      taskNameEl.textContent = task.name;
+      taskDueEl.textContent = new Date(task.due).toLocaleString();
+      // Disable snooze if completed
+      if (task.status === 'completed') {
+        snoozeBtn.disabled = true;
+        snoozePanel.style.display = 'none';
+      }
+    };
+
+    // Post messages to service worker via navigator.serviceWorker.controller or via clients
+    const postToSW = (message) => {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage(message);
+      } else {
+        // try to get a client and postMessage
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg && reg.active) {
+            reg.active.postMessage(message);
+          }
+        });
+      }
+    };
+
+    snoozeBtn.addEventListener('click', () => {
+      snoozePanel.style.display = snoozePanel.style.display === 'none' ? 'block' : 'none';
+    });
+
+    snoozePanel.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const minutes = parseInt(btn.dataset.min, 10);
+      const task = loadTaskFromStorage();
+      if (!task) return;
+
+      // Update task due in localStorage
+      task.due = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+      task.status = 'pending';
+      const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+      const idx = tasks.findIndex(t => t.id === task.id);
+      if (idx !== -1) tasks[idx] = task;
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+
+      // Tell service worker to reschedule
+      postToSW({ action: 'reschedule', taskId: task.id, newDue: task.due });
+
+      // Close window
+      window.close();
+    });
+
+    completedBtn.addEventListener('click', () => {
+      const task = loadTaskFromStorage();
+      if (!task) return;
+      task.status = 'completed';
+      const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+      const idx = tasks.findIndex(t => t.id === task.id);
+      if (idx !== -1) tasks[idx] = task;
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+
+      // Inform service worker to cancel pending timers
+      postToSW({ action: 'complete', taskId: task.id });
+
+      // Close window
+      window.close();
+    });
+
+    // Render immediately
+    render();
+
+    // Also listen for storage events in case another window updates the task
+    window.addEventListener('storage', render);
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // sw.js - Service Worker for Task Reminder App
 
 const pendingTasks = new Map();
+const scheduleTimers = new Map();
 
 self.addEventListener('install', event => {
   console.log('Service Worker: Installing...');
@@ -19,8 +20,13 @@ const scheduleNotification = (task) => {
 
   if (delay > 0) {
     console.log(`Service Worker: Scheduling notification for "${task.name}" in ${delay / 1000} seconds.`);
-    
-    setTimeout(() => {
+    // clear any existing timer for this task
+    if (scheduleTimers.has(task.id)) {
+      clearTimeout(scheduleTimers.get(task.id));
+      scheduleTimers.delete(task.id);
+    }
+
+    const timerId = setTimeout(() => {
       self.registration.showNotification('Task Reminder!', {
         body: task.name,
         icon: './icon-192.svg',
@@ -28,27 +34,54 @@ const scheduleNotification = (task) => {
         vibrate: [500, 200, 500, 200, 500],
         silent: false,
         tag: task.id.toString(),
-        // --- NEW LINE ---
-        // This makes the notification persistent until the user interacts with it.
         requireInteraction: true,
+        // Keep actions minimal because we'll open a window for full UI
         actions: [
-          { action: 'snooze', title: 'Snooze 5 min' },
-          { action: 'dismiss', title: 'Dismiss' }
+          { action: 'open', title: 'Open' }
         ]
       });
       console.log(`Service Worker: Notification shown for "${task.name}".`);
-      pendingTasks.delete(task.id); // Remove after showing
+      // remove timer entry but keep task in pendingTasks so the client window can act on it
+      scheduleTimers.delete(task.id);
     }, delay);
+
+    scheduleTimers.set(task.id, timerId);
   } else {
-    console.log(`Service Worker: Task "${task.name}" is already past due. No notification scheduled.`);
+    console.log(`Service Worker: Task "${task.name}" is already past due. Scheduling immediate notification.`);
+    // Show immediate notification if due time passed
+    self.registration.showNotification('Task Reminder!', {
+      body: task.name,
+      icon: './icon-192.svg',
+      badge: './icon-192.svg',
+      vibrate: [500, 200, 500, 200, 500],
+      silent: false,
+      tag: task.id.toString(),
+      requireInteraction: true,
+      actions: [ { action: 'open', title: 'Open' } ]
+    });
   }
 };
 
 self.addEventListener('message', event => {
   const data = event.data;
-  if (data.action === 'complete') {
-    pendingTasks.delete(data.taskId);
-    console.log('Service Worker: Task completed, removed from pending:', data.taskId);
+  // Message types: { action: 'complete', taskId }, { action: 'reschedule', taskId, newDue }, or a full task object
+  if (data && data.action === 'complete') {
+    const id = data.taskId;
+    if (scheduleTimers.has(id)) {
+      clearTimeout(scheduleTimers.get(id));
+      scheduleTimers.delete(id);
+    }
+    pendingTasks.delete(id);
+    console.log('Service Worker: Task completed, removed from pending:', id);
+  } else if (data && data.action === 'reschedule') {
+    const id = data.taskId;
+    const task = pendingTasks.get(id);
+    if (task) {
+      task.due = data.newDue; // ISO string
+      pendingTasks.set(id, task);
+      scheduleNotification(task);
+      console.log('Service Worker: Task rescheduled from client:', id, data.newDue);
+    }
   } else {
     const task = data;
     console.log('Service Worker: Message received.', task);
@@ -62,30 +95,30 @@ self.addEventListener('notificationclick', event => {
 
   const taskId = parseInt(event.notification.tag);
 
-  if (event.action === 'snooze') {
-    const task = pendingTasks.get(taskId);
-    if (task) {
-      // Update due time to 5 minutes from now
-      task.due = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-      scheduleNotification(task);
-      console.log(`Service Worker: Snoozed "${task.name}" for 5 minutes.`);
-    }
-  } else {
-    // Default or dismiss: close and focus
-    event.notification.close();
-  }
-
+  // Open a small client window that provides the snooze/completed UI
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      // Try to focus an existing window at our app scope
       for (const client of clientList) {
         if (client.url === self.registration.scope && 'focus' in client) {
-          return client.focus();
+          client.focus();
+          // open notification.html in a new window to ensure UI is shown
+          if (clients.openWindow) {
+            const url = new URL('notification.html', self.registration.scope);
+            url.searchParams.set('taskId', String(taskId));
+            return clients.openWindow(url.href);
+          }
+          return;
         }
       }
+      // no matching client, just open notification.html
       if (clients.openWindow) {
-        return clients.openWindow(self.registration.scope);
+        const url = new URL('notification.html', self.registration.scope);
+        url.searchParams.set('taskId', String(taskId));
+        return clients.openWindow(url.href);
       }
     })
   );
+  event.notification.close();
 });
 
