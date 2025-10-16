@@ -97,6 +97,9 @@
                       <button id="reset-app-btn" class="w-full sm:w-auto mt-2 bg-red-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-300">
                           Reset App
                       </button>
+                      <button id="test-notification-btn" class="w-full sm:w-auto mt-2 bg-yellow-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 transition duration-300">
+                          Test Notification
+                      </button>
                  <p id="notification-status" class="text-sm text-gray-500 mt-2"></p>
             </div>
 
@@ -157,6 +160,7 @@
             const enableNotificationsBtn = document.getElementById('enable-notifications-btn');
             const notificationStatus = document.getElementById('notification-status');
             const resetAppBtn = document.getElementById('reset-app-btn');
+            const testNotificationBtn = document.getElementById('test-notification-btn');
             
             // Dashboard elements
             const totalTasksEl = document.getElementById('total-tasks');
@@ -255,6 +259,18 @@
                 }
                 renderTasks();
                 showMessage('App reset. All tasks cleared.', 'info');
+            });
+
+            testNotificationBtn.addEventListener('click', () => {
+                // Send test notification message to service worker
+                const testTask = {
+                    id: 'test-' + Date.now(),
+                    name: 'Test Reminder',
+                    due: new Date().toISOString(),
+                    status: 'pending'
+                };
+                sendToSW({ action: 'test', task: testTask });
+                showMessage('Test notification triggered. Check for popup and new window.');
             });
 
             // --- Task Management ---

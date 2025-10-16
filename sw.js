@@ -108,6 +108,28 @@ self.addEventListener('message', event => {
     }
     return;
   }
+  // Handle test notification
+  if (data && data.action === 'test') {
+    const task = data.task;
+    console.log('Service Worker: Test notification triggered for:', task.name);
+    self.registration.showNotification('Task Reminder!', {
+      body: task.name,
+      icon: './icon-192.svg',
+      badge: './icon-192.svg',
+      vibrate: [500, 200, 500, 200, 500],
+      silent: false,
+      tag: task.id.toString(),
+      requireInteraction: true,
+      actions: [
+        { action: 'open', title: 'Open' }
+      ]
+    });
+    // Open the notification window immediately
+    const url = new URL('notification.html', self.registration.scope);
+    url.searchParams.set('taskId', String(task.id));
+    clients.openWindow(url.href);
+    return;
+  }
   // Otherwise, treat as new/updated task
   if (data && data.id) {
     const task = data;
