@@ -56,7 +56,7 @@
         
         <main>
             <!-- Dashboard Section -->
-            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <!-- Total Tasks -->
                 <div class="bg-blue-100 p-4 rounded-lg shadow-md flex items-center">
                     <div class="bg-blue-500 text-white rounded-full p-2 mr-4">
@@ -75,16 +75,6 @@
                     <div>
                         <h3 class="text-gray-500 font-medium">Upcoming</h3>
                         <p id="upcoming-tasks" class="text-2xl font-bold text-gray-800">0</p>
-                    </div>
-                </div>
-                <!-- Overdue Tasks -->
-                <div class="bg-red-100 p-4 rounded-lg shadow-md flex items-center">
-                    <div class="bg-red-500 text-white rounded-full p-2 mr-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    </div>
-                    <div>
-                        <h3 class="text-gray-500 font-medium">Overdue</h3>
-                        <p id="overdue-tasks" class="text-2xl font-bold text-gray-800">0</p>
                     </div>
                 </div>
                 <!-- Completed Tasks -->
@@ -167,7 +157,6 @@
             // Dashboard elements
             const totalTasksEl = document.getElementById('total-tasks');
             const upcomingTasksEl = document.getElementById('upcoming-tasks');
-            const overdueTasksEl = document.getElementById('overdue-tasks');
             const completedTasksEl = document.getElementById('completed-tasks');
             const completedList = document.getElementById('completed-list');
             const noCompletedMessage = document.getElementById('no-completed-message');
@@ -199,12 +188,10 @@
                 const pendingTasks = tasks.filter(t => t.status === 'pending');
                 const total = tasks.length;
                 const upcoming = pendingTasks.filter(t => new Date(t.due) > currentTime).length;
-                const overdue = pendingTasks.filter(t => new Date(t.due) <= currentTime).length;
                 const completed = tasks.filter(t => t.status === 'completed').length;
 
                 totalTasksEl.textContent = total;
                 upcomingTasksEl.textContent = upcoming;
-                overdueTasksEl.textContent = overdue;
                 completedTasksEl.textContent = completed;
             };
             
@@ -270,9 +257,7 @@
                                 <p class="text-sm">${dueDate.toLocaleString()}</p>
                             </div>
                             <div class="flex flex-col space-y-1">
-                                <button data-id="${task.id}" class="snooze-btn-5 text-blue-500 hover:text-blue-700 text-sm py-1 px-2 rounded transition">Snooze 5m</button>
-                                <button data-id="${task.id}" class="snooze-btn-15 text-blue-500 hover:text-blue-700 text-sm py-1 px-2 rounded transition">Snooze 15m</button>
-                                <button data-id="${task.id}" class="snooze-btn-60 text-blue-500 hover:text-blue-700 text-sm py-1 px-2 rounded transition">Snooze 60m</button>
+                                <button data-id="${task.id}" class="open-btn text-indigo-600 hover:text-indigo-800 text-sm py-1 px-2 rounded transition">Open</button>
                                 <button data-id="${task.id}" class="completed-btn text-green-500 hover:text-green-700 text-sm py-1 px-2 rounded transition">Completed</button>
                                 <button data-id="${task.id}" class="delete-btn text-red-500 hover:text-red-700 text-sm py-1 px-2 rounded transition">Delete</button>
                             </div>
@@ -350,27 +335,10 @@
                     tasks = tasks.filter(t => t.id !== taskId);
                     saveTasks();
                     showMessage('Task removed.', 'info');
-                } else if (button.classList.contains('snooze-btn-5')) {
-                    task.due = new Date(new Date(task.due).getTime() + 5 * 60 * 1000).toISOString();
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage(task);
-                    }
-                    saveTasks();
-                    showMessage('Task snoozed for 5 minutes.');
-                } else if (button.classList.contains('snooze-btn-15')) {
-                    task.due = new Date(new Date(task.due).getTime() + 15 * 60 * 1000).toISOString();
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage(task);
-                    }
-                    saveTasks();
-                    showMessage('Task snoozed for 15 minutes.');
-                } else if (button.classList.contains('snooze-btn-60')) {
-                    task.due = new Date(new Date(task.due).getTime() + 60 * 60 * 1000).toISOString();
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage(task);
-                    }
-                    saveTasks();
-                    showMessage('Task snoozed for 60 minutes.');
+                } else if (button.classList.contains('open-btn')) {
+                    // Open the notification UI in a new small window
+                    const url = `notification.html?taskId=${taskId}`;
+                    window.open(url, '_blank', 'width=420,height=360');
                 } else if (button.classList.contains('completed-btn')) {
                     task.status = 'completed';
                     if (navigator.serviceWorker.controller) {
